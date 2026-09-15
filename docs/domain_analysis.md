@@ -82,18 +82,46 @@ SHAP (Shapley Additive Explanations) analysis reveals feature contributions to m
 
 ---
 
-## 5. Deep Transfer Learning (DTL) & Cross-Device Generalization
+## 5. Deep Transfer Learning (DTL) & Recurrent Architectures (GRU)
 
-Deep Transfer Learning (DTL) improves cyberattack detection accuracy on target IoT devices by addressing one of Deep Learning's primary bottlenecks: the requirement for large volumes of labeled data specific to each type of equipment [1, 2].
+Deep Transfer Learning (DTL) combined with Gated Recurrent Units (GRU) addresses one of the primary operational bottlenecks in IoT/IIoT intrusion detection: the severe shortage of labeled malicious telemetry across heterogeneous edge endpoints and extreme class imbalance [1, 2, 3].
 
-### 5.1. Overcoming Data Scarcity & Class Imbalance
-In real-world IoT and IIoT networks, the availability of labeled malicious traffic data for each individual device is very low, accompanied by severe class imbalance [2, 3]. DTL enables reusing knowledge extracted from a device with well-structured data (source domain) to classify traffic on a target device that lacks labeled data (target domain) [1].
+### 5.1. Problem Statement: Data Scarcity & Heterogeneous IoT Edge
+In production IoT deployments, individual smart sensors (e.g., thermostats, motion detectors) rarely possess sufficient labeled attack samples to train high-capacity deep learning networks from scratch [1, 2]. DTL bypasses full retraining by extracting non-linear temporal dynamics from a telemetry-rich source device (source domain) and transferring frozen layer representations to an unlabelled target device (target domain) [1, 4].
 
-### 5.2. Knowledge Transfer Mechanism (GRU-Based Architecture)
-In the GRU-based (Gated Recurrent Unit) model, the network is initially trained on a source device (e.g., smart garage door or GPS tracker) [1]. The parameters, layers, and weights learned by this trained network are saved and transferred to a new target model (e.g., smart thermostat) [1]. Consequently, the target device inherits the capability to recognize complex attack patterns (such as DoS, DDoS, and Backdoors) without requiring full training from scratch [1].
+### 5.2. 5-Layer DTL-GRU Architecture Specifications
+The architecture proposed by Poonkuzhali et al. consists of a 5-layer deep recurrent structure engineered specifically for sequential telemetry processing [1, 3]:
 
-### 5.3. Empirical Performance & Accuracy Leap
-Experiments conducted with ToN_IoT telemetry demonstrated that applying Transfer Learning to GRU networks raised classification accuracy on target devices from **69.20% up to 99.76%** [1]:
+* **Input Layer:** Formed by 9 neurons with Linear/Identity activation, corresponding directly to the 9 extracted sensor telemetry attributes [3, 6].
+* **Recurrent Layer 1 (GRU 1):** First recurrent layer containing 256 GRU neurons using Tanh/Sigmoid gating to capture macro temporal dependencies and sequential patterns [3, 6].
+* **Recurrent Layer 2 (GRU 2):** Second recurrent layer containing 256 GRU neurons with Tanh/Sigmoid gating to extract higher-level temporal features from the initial recurrent output [3, 6].
+* **Recurrent Layer 3 (GRU 3):** Third recurrent layer containing 256 GRU neurons with Tanh/Sigmoid gating to encode complex non-linear temporal state transitions [3, 6].
+* **Recurrent Layer 4 (GRU 4):** Fourth recurrent layer containing 64 GRU neurons utilizing the ReLU activation function to compress hidden representations while preventing vanishing gradients [3, 6].
+* **Output Dense Layer:** Final classification layer containing 1 neuron. The base model utilizes ReLU activation, whereas the target model attaches an additional Sigmoid activation layer to map latent representations directly into binary decisions (`0 = Normal`, `1 = Attack`) [3, 7].
 
-* **Source-to-Target Generalization:** When using the smart GPS tracker or smart garage door as the source domain and the smart thermostat as the target domain, classification accuracy peaked at **99.76%** [1].
-* **Comparison with Non-Transferred DL Models:** DTL significantly outperformed non-transferred traditional Deep Learning algorithms (conventional CNN, RNN, and DNN architectures), establishing a high-performance common baseline across heterogeneous edge devices [1].
+### 5.3. Hyperparameters & Optimization Pipeline
+Model convergence and optimization are governed by the following hyperparameter settings [3]:
+
+* **Loss Function:** Binary Cross-Entropy, calculating logarithmic loss for binary decision outputs [3].
+* **Optimizer:** `RMSprop` (Root Mean Square Propagation), providing adaptive learning rates well-suited for non-stationary recurrent gradient dynamics [3].
+* **Batch Size:** 1000 samples per mini-batch, balancing gradient stability with processing throughput [3].
+* **Training Epochs:** 10 epochs, sufficient for loss stabilization and convergence without overfitting [3].
+
+### 5.4. Knowledge Transfer Mechanism (`GRUbasemodel` → `GRUtargetmodel`)
+The transfer learning pipeline is executed in two distinct stages [4, 5]:
+
+1. **Source Training (`GRUbasemodel`):** The base model is trained from scratch using full labeled telemetry from a source device (e.g., smart garage door or smart fridge) [1, 5].
+2. **Knowledge Extraction & Transfer:** Learned weights, hidden layer parameters, and gating mechanisms are saved and frozen [4, 5].
+3. **Target Adaptation (`GRUtargetmodel`):** The frozen network is transferred to the target device domain (e.g., smart thermostat) [1, 5]. An additional Sigmoid activation layer is attached to the output to fine-tune classification without retraining the underlying GRU layers from scratch [4, 5].
+
+### 5.5. Hybrid GRU Architectures in ToN_IoT Benchmarking
+Beyond standalone DTL models, GRU units are utilized in hybrid deep learning architectures across ToN_IoT research to benchmark performance against lightweight tree-based models [2, 3]:
+
+* **LSTM + DENSE + GRU Hybrid:** Integrates Long Short-Term Memory (LSTM) blocks, dense layers, and GRU units to fuse long-term sequence tracking with rapid gated representations, supporting both binary and multi-class attack classification [2, 11].
+* **GRU-BiLSTM Baseline:** Combines Bidirectional LSTM (evaluating past-to-future and future-to-past contexts) with GRU layers [3]. Serves as a deep recurrent benchmark to evaluate computational overhead and inference latency against lightweight models such as Hybrid Random Forest [3, 12].
+
+### 5.6. Empirical Performance & Accuracy Leap
+Experimental evaluations using ToN_IoT telemetry confirm significant gains achieved through knowledge transfer [1]:
+
+* **Accuracy Leap:** Applying DTL-GRU elevated target device classification accuracy from **69.20% up to 99.76%** (specifically when transferring from a smart garage door/GPS tracker source to a smart thermostat target) [1].
+* **Outperforming Non-Transferred Models:** The transferred DTL-GRU architecture consistently outperformed conventional, non-transferred deep learning architectures (including standard CNN, RNN, and DNN baselines), demonstrating robust cross-device generalization across heterogeneous edge environments [1].
